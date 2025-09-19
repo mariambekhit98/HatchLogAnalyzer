@@ -146,7 +146,7 @@
         this.rawFindings = [];     // all matches (one per occurrence)
         this.totalOccurrences = 0; // total count across all matches
 
-        // SD health counters to check (FC removed per your request)
+        // Existing SD health counters (FC removed earlier)
         this.sdFieldsToWarn = ['TF','CTF','RF','WF','FE','DE'];
 
         this.initializeEventListeners();
@@ -160,6 +160,7 @@
 
       defineErrorRules() {
         this.errorRules = [
+          // Existing rules
           {
             pattern: /Backtrace:.*|Guru Meditation Error|crashdump_image_new|crashdump: Core dump partition cleared|LDR: CRASH|esp_crashdump_ets_printf_from/i,
             severity: 'High',
@@ -207,10 +208,35 @@
             severity: 'Low',
             title: 'Network Ping Timeout',
             explanation: 'The device sent a test signal to the local network router but did not receive a response. Occasional timeouts are normal, but frequent occurrences can point to an unstable Wi-Fi connection.'
+          },
+
+          // ===== NEW RULES (regex-only) =====
+          // 2) SD Card Mount fail (High)
+          {
+            pattern: /vfs_fat_sdmmc:\s*sdmmc_card_init failed \(0x107\)\.|_mount_sd:\s*SD Card mount failed \(263\)|sdmmc_common:\s*sdmmc_init_ocr:\s*send_op_cond \(1\) returned 0x107|hatch_sd_remount:\s*\*\*\* We are going to attempt to remount the SD_CARD\. Attempt = \d+ \*\*\*|hal_enable_sd_card:\s*Attempted to turn SD card on, was already on|hatch_sd_remount:\s*\*\*\* We tried to remount the SD CARD but are out of retries \*\*\*/i,
+            severity: 'High',
+            title: 'SD Card Mount fail',
+            explanation: 'Unable to mount SD Card.'
+          },
+
+          // 3) SD Card Read and write Errors (High)
+          {
+            pattern: /_prepare_samples:\s*audio_player_read failed \(-1\)|hatch_sd_has_file:\s*Failed to stat '.*?'|Write to SD card blocked for \d+mS!|Writing file \/mnt\/\.tmpwav failed, closing and restarting\. returnValue:\s*-1,\s*errno:\s*28|sd_fetch_wav_task:\s*SD error:\s*\d+,\s*SD status:\s*0x[0-9a-fA-F]+/i,
+            severity: 'High',
+            title: 'SD Card Read and write Errors',
+            explanation: 'An error was detected when the SD card attempted to read or write a file.'
+          },
+
+          // 4) Full SD Card (High) — only failure indicators
+          {
+            pattern: /_delete_oldest_downloaded_file:\s*Memory alloc failed!|diskio_sdmmc:\s*sdmmc_read_blocks failed \(263\)|sdmmc_cmd:\s*sdmmc_read_sectors_dma:\s*sdmmc_send_cmd returned 0x107|sd_reader_init:\s*A stat\(\) of the downloaded directory returned error 5\.|sd_reader_init:\s*A stat\(\) of the logs directory returned error 5\./i,
+            severity: 'High',
+            title: 'Full SD Card',
+            explanation: 'Lamp unable to download tracks because the SD card is full.'
           }
+
+          // (No generic sd_reader_log_health rule here; handled by the specialized parser below)
         ];
-        // NOTE: We intentionally REMOVED the generic "sd_reader_log_health" rule
-        // so SD health lines only produce the unified High-severity issue below.
       }
 
       async handleFileSelect(event) {
@@ -239,7 +265,7 @@
         });
       }
 
-      // ---- SD health parsing & unified finding ----
+      // ---- Existing SD health parsing & unified finding ----
       parseSdReaderHealth(line) {
         const payload = line.split('sd_reader_log_health:')[1]?.trim();
         if (!payload) return null;
@@ -266,7 +292,6 @@
 
         if (offenders.length === 0) return null;
 
-        // Single HIGH card, includes the offending counters and the requested language.
         return {
           timestamp,
           severity: 'High',
@@ -278,6 +303,57 @@
         };
       }
       // ---------------------------------------------
+
+      // ===== NEW PARSERS =====
+
+      // 1) SD Card Data Failure (Low) — downloader_report_stats & related lines
+      parseDownloaderStats(line) {
+        // Example: downloader_report_stats: Download Stats >> Max=163, Min=139, Avg=147, Count=3, failed attempts=0
+        const m = line.match(/downloader_report_stats:\s*Download Stats\s*>>\s*Max=(\d+(?:\.\d+)?),\s*Min=(\d+(?:\.\d+)?),\s*Avg=(\d+(?:\.\d+)?),\s*Count=(\d+),\s*failed attempts=(\d+)/i);
+        if (!m) return null;
+        return {
+          Max: Number(m[1]),
+          Min: Number(m[2]),
+          Avg: Number(m[3]),
+          Count: Number(m[4]),
+          Failed: Number(m[5])
+        };
+      }
+
+      // 5) IoT Connectivity Health — one card per offending metric (AD/WD/FP)
+      parseIoTConnectivity(line) {
+        // RC=12;RT=3600.097;AC=3586.999;AD=1;DH=0,1,0,0;WC=3600.089;WD=0;SP=60;FP=0;RMIN=-37;RMAX=-30;RA=-32.523
+        if (!/[; ]AD=|[; ]WD=|[; ]FP=/.test(line)) return null;
+        const parts = line.split(';').map(s => s.trim());
+        const kv = {};
+        for (const p of parts) {
+          const m = p.match(/^([A-Z]+)\s*=\s*([-\d.]+(?:,[\d.]+)*)$/i);
+          if (m) kv[m[1].toUpperCase()] = m[2];
+        }
+        const res = {};
+        ['AD','WD','FP'].forEach(k => {
+          if (k in kv) {
+            const v = Number(String(kv[k]).split(',')[0]); // handle any comma group; use first number
+            if (!Number.isNaN(v)) res[k] = v;
+          }
+        });
+        return res;
+      }
+
+      // 6) Audio Error — parse AUDIO_STAT
+      parseAudioStat(line) {
+        // AUDIO_STAT: V:1;F:0;FW:0;WP:3;WD:61587;WU:2;...;MU:0;...;SU:0;...
+        const tagIdx = line.indexOf('AUDIO_STAT:');
+        if (tagIdx === -1) return null;
+        const payload = line.slice(tagIdx + 'AUDIO_STAT:'.length).trim();
+        const parts = payload.split(';').map(s => s.trim()).filter(Boolean);
+        const kv = {};
+        for (const p of parts) {
+          const m = p.match(/^([A-Z]+)\s*:\s*([-\d.]+)$/i);
+          if (m) kv[m[1].toUpperCase()] = Number(m[2]);
+        }
+        return kv;
+      }
 
       analyzeLogData(csvData) {
         try {
@@ -297,18 +373,90 @@
             const timestamp = rowData['log_timestamp_pt'] || 'N/A';
             const logMessage = rowData['log_message'] || fullLogLine;
 
-            // Unified SD-health handler
+            // ---- Existing: Unified SD-health handler
             if (/sd_reader_log_health:/i.test(fullLogLine)) {
               const kv = this.parseSdReaderHealth(fullLogLine);
               if (kv) {
                 const f = this.makeUnifiedSdFinding(kv, timestamp, logMessage);
                 if (f) detected.push(f);
               }
-              // Do NOT let the generic rules also match this line
+              // Don't let generic rules also match this line
               continue;
             }
 
-            // Generic regex rules
+            // ---- NEW: SD Card Data Failure
+            // Stats-based (only if failed attempts > 0)
+            if (/downloader_report_stats:/i.test(fullLogLine)) {
+              const stats = this.parseDownloaderStats(fullLogLine);
+              if (stats && stats.Failed > 0) {
+                detected.push({
+                  timestamp,
+                  severity: 'Low',
+                  title: 'SD Card Data Failure',
+                  explanation:
+                    `Download stats show failures. ` +
+                    `Max = ${stats.Max} (max download speed), Min = ${stats.Min} (minimum), ` +
+                    `Avg = ${stats.Avg} (average), Count = ${stats.Count} (files downloaded), ` +
+                    `Failed attempts = ${stats.Failed} (download failures since last boot).`,
+                  originalLogMessage: logMessage
+                });
+              }
+              // Still allow generic rules below to check other patterns on this line if any
+            } else if (
+              /web_streamer_start_download:\s*File download queued\.\.\.|_do_download:\s*Error on file write, aborting download, errno is 28|http_client_close:\s*Closing http client connection|content_scheduler_check:\s*File .* reached maximum download attempts/i
+              .test(fullLogLine)
+            ) {
+              detected.push({
+                timestamp,
+                severity: 'Low',
+                title: 'SD Card Data Failure',
+                explanation:
+                  'A download-related error occurred. Max = maximum download speed, Min = minimum download speed, ' +
+                  'Avg = average download speed, Count = number of files downloaded, Failed attempts = number of download failures since last boot.',
+                originalLogMessage: logMessage
+              });
+              // continue through to allow other unrelated rules on the same line if needed
+            }
+
+            // ---- NEW: IoT Connectivity Health (one card per metric with value > 0)
+            if (/RC=\d+;.*RMAX=.*;RA=/.test(fullLogLine)) {
+              const kv = this.parseIoTConnectivity(fullLogLine);
+              if (kv) {
+                ['AD','WD','FP'].forEach(k => {
+                  const v = kv[k];
+                  if (typeof v === 'number' && v > 0) {
+                    detected.push({
+                      timestamp,
+                      severity: 'Medium',
+                      title: `IoT Connectivity Health: ${k} > 0`,
+                      explanation: `Network connectivity issue detected. ${k}=${v}`,
+                      originalLogMessage: logMessage
+                    });
+                  }
+                });
+              }
+            }
+
+            // ---- NEW: Audio Error (aggregate F, FW, WU, MU, SU > 0)
+            if (/AUDIO_STAT:/i.test(fullLogLine)) {
+              const kv = this.parseAudioStat(fullLogLine);
+              if (kv) {
+                const keys = ['F','FW','WU','MU','SU'];
+                const offenders = keys.filter(k => typeof kv[k] === 'number' && kv[k] > 0)
+                                      .map(k => `${k}=${kv[k]}`);
+                if (offenders.length > 0) {
+                  detected.push({
+                    timestamp,
+                    severity: 'High',
+                    title: 'Audio Error',
+                    explanation: `An error detected in audio playback. Offending counters: ${offenders.join(', ')}`,
+                    originalLogMessage: logMessage
+                  });
+                }
+              }
+            }
+
+            // ---- Existing: generic regex rules
             for (const rule of this.errorRules) {
               if (rule.pattern.test(fullLogLine)) {
                 detected.push({
