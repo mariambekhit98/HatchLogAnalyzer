@@ -9,10 +9,12 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh; padding: 20px;
+      min-height: 100vh; padding: 24px;
     }
     .container {
-      max-width: 1000px; margin: 0 auto;
+      width: 95vw;                 /* use most of the viewport width */
+      max-width: 1200px;           /* wider than before (was 1000px) */
+      margin: 0 auto;
       background: rgba(255, 255, 255, 0.95);
       border-radius: 20px;
       box-shadow: 0 20px 40px rgba(0,0,0,0.1);
@@ -21,24 +23,26 @@
     }
     .header {
       background: linear-gradient(45deg, #4f46e5, #7c3aed);
-      color: white; padding: 30px; text-align: center;
+      color: white; padding: 36px; text-align: center;
     }
     .header h1 {
-      font-size: 2.5rem; font-weight: 700; margin-bottom: 10px;
+      font-size: 3rem;             /* larger title (was 2.5rem) */
+      font-weight: 700; margin-bottom: 12px;
       text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
-    .header p { font-size: 1.1rem; opacity: 0.9; }
+    .header p { font-size: 1.15rem; opacity: 0.9; }
 
     .controls {
-      padding: 30px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-      display: flex; gap: 15px; align-items: center; flex-wrap: wrap;
+      padding: 32px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+      display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
     }
     .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
     .file-input { position: absolute; left: -9999px; }
 
     .btn {
-      padding: 12px 24px; border: none; border-radius: 10px; font-weight: 600; font-size: 14px;
-      cursor: pointer; transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px;          /* bigger buttons */
+      border: none; border-radius: 10px; font-weight: 600; font-size: 16px;
+      cursor: pointer; transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 10px;
     }
     .btn-primary { background: linear-gradient(45deg, #4f46e5, #7c3aed); color: white; box-shadow: 0 4px 15px rgba(79,70,229,0.4); }
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(79,70,229,0.6); }
@@ -46,68 +50,72 @@
     .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(16,185,129,0.6); }
     .btn:disabled { background: #9ca3af; cursor: not-allowed; transform: none; box-shadow: none; }
 
-    .file-info { flex: 1; min-width: 200px; color: #64748b; font-size: 14px; }
+    .file-info { flex: 1; min-width: 220px; color: #64748b; font-size: 15px; }
 
-    .report-area { padding: 30px; min-height: 400px; }
-    .welcome-message { text-align: center; color: #64748b; font-size: 18px; margin-top: 100px; }
+    .report-area { padding: 40px; min-height: 480px; }  /* more generous padding/height */
+    .welcome-message { text-align: center; color: #64748b; font-size: 20px; margin-top: 110px; }
 
     .error-summary {
       background: #f0f9ff; border: 1px solid #0ea5e9;
-      border-radius: 12px; padding: 20px; margin-bottom: 30px;
+      border-radius: 12px; padding: 22px; margin-bottom: 34px;
+      font-size: 1.05rem;
     }
-    .error-summary h2 { color: #0c4a6e; margin-bottom: 15px; font-size: 1.5rem; }
+    .error-summary h2 { color: #0c4a6e; margin-bottom: 16px; font-size: 1.6rem; }
 
-    .severity-section { margin-bottom: 30px; }
+    .severity-section { margin-bottom: 34px; }
     .severity-header {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
-      padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;
+      display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+      padding-bottom: 10px; border-bottom: 2px solid #e2e8f0;
     }
+    .severity-very-high { color: #b91c1c; } /* deep red */
     .severity-high { color: #dc2626; }
     .severity-medium { color: #f59e0b; }
     .severity-low { color: #eab308; }
 
     .error-item {
-      background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin-bottom: 15px;
+      background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; margin-bottom: 16px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
       transition: all 0.3s ease; position: relative;
     }
     .error-item:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-    .error-title { font-weight: 700; color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; }
-    .error-explanation { color: #475569; line-height: 1.6; }
+    .error-title { font-weight: 700; color: #1e293b; margin-bottom: 10px; font-size: 1.15rem; }
+    .error-explanation { color: #475569; line-height: 1.7; font-size: 1rem; }
 
     .badge {
       position: absolute; top: 16px; right: 16px;
       background: #eef2ff; color: #3730a3;
       border: 1px solid #c7d2fe; border-radius: 9999px;
-      padding: 4px 10px; font-size: 12px; font-weight: 700;
+      padding: 5px 12px; font-size: 13px; font-weight: 700;
     }
 
     .error-meta {
-      margin-top: 10px; font-size: 12px; color: #64748b;
-      display: grid; grid-template-columns: 1fr; gap: 6px;
+      margin-top: 12px; font-size: 13px; color: #64748b;
+      display: grid; grid-template-columns: 1fr; gap: 8px;
     }
     .error-meta pre {
-      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; overflow: auto;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; overflow: auto; font-size: 13px;
     }
-    .loading { text-align: center; padding: 50px; color: #64748b; }
+    .loading { text-align: center; padding: 56px; color: #64748b; font-size: 1.05rem; }
     .spinner {
       border: 3px solid #f3f4f6; border-top: 3px solid #4f46e5;
-      border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 20px;
+      border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; margin: 0 auto 22px;
     }
     @keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
 
     .error-message {
       background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
-      padding: 20px; border-radius: 10px; text-align: center;
+      padding: 22px; border-radius: 12px; text-align: center; font-size: 1rem;
     }
     .success-message {
       background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;
-      padding: 20px; border-radius: 10px; text-align: center;
+      padding: 22px; border-radius: 12px; text-align: center; font-size: 1rem;
     }
 
     @media (max-width: 768px) {
       .controls { flex-direction: column; align-items: stretch; }
       .file-info { text-align: center; }
+      .header h1 { font-size: 2.2rem; }
+      .btn { width: 100%; justify-content: center; }
     }
   </style>
 </head>
@@ -143,11 +151,11 @@
         this.fileInfo = document.getElementById('fileInfo');
         this.reportArea = document.getElementById('reportArea');
 
-        this.rawFindings = [];     // all matches (one per occurrence)
-        this.totalOccurrences = 0; // total count across all matches
+        this.rawFindings = [];
+        this.totalOccurrences = 0;
 
-        // Existing SD health counters (FC removed earlier)
-        this.sdFieldsToWarn = ['TF','CTF','RF','WF','FE','DE'];
+        // SD health counters (FC intentionally excluded)
+        this.sdHealthFields = ['TF','CTF','RF','WF','FE','DE'];
 
         this.initializeEventListeners();
         this.defineErrorRules();
@@ -160,7 +168,6 @@
 
       defineErrorRules() {
         this.errorRules = [
-          // Existing rules
           {
             pattern: /Backtrace:.*|Guru Meditation Error|crashdump_image_new|crashdump: Core dump partition cleared|LDR: CRASH|esp_crashdump_ets_printf_from/i,
             severity: 'High',
@@ -210,32 +217,31 @@
             explanation: 'The device sent a test signal to the local network router but did not receive a response. Occasional timeouts are normal, but frequent occurrences can point to an unstable Wi-Fi connection.'
           },
 
-          // ===== NEW RULES (regex-only) =====
-          // 2) SD Card Mount fail (High)
+          // NEW / UPDATED RULES
           {
             pattern: /vfs_fat_sdmmc:\s*sdmmc_card_init failed \(0x107\)\.|_mount_sd:\s*SD Card mount failed \(263\)|sdmmc_common:\s*sdmmc_init_ocr:\s*send_op_cond \(1\) returned 0x107|hatch_sd_remount:\s*\*\*\* We are going to attempt to remount the SD_CARD\. Attempt = \d+ \*\*\*|hal_enable_sd_card:\s*Attempted to turn SD card on, was already on|hatch_sd_remount:\s*\*\*\* We tried to remount the SD CARD but are out of retries \*\*\*/i,
             severity: 'High',
             title: 'SD Card Mount fail',
             explanation: 'Unable to mount SD Card.'
           },
-
-          // 3) SD Card Read and write Errors (High)
           {
             pattern: /_prepare_samples:\s*audio_player_read failed \(-1\)|hatch_sd_has_file:\s*Failed to stat '.*?'|Write to SD card blocked for \d+mS!|Writing file \/mnt\/\.tmpwav failed, closing and restarting\. returnValue:\s*-1,\s*errno:\s*28|sd_fetch_wav_task:\s*SD error:\s*\d+,\s*SD status:\s*0x[0-9a-fA-F]+/i,
             severity: 'High',
             title: 'SD Card Read and write Errors',
-            explanation: 'An error was detected when the SD card attempted to read or write a file.'
+            explanation: 'SD card error detected.'
           },
-
-          // 4) Full SD Card (High) — only failure indicators
           {
             pattern: /_delete_oldest_downloaded_file:\s*Memory alloc failed!|diskio_sdmmc:\s*sdmmc_read_blocks failed \(263\)|sdmmc_cmd:\s*sdmmc_read_sectors_dma:\s*sdmmc_send_cmd returned 0x107|sd_reader_init:\s*A stat\(\) of the downloaded directory returned error 5\.|sd_reader_init:\s*A stat\(\) of the logs directory returned error 5\./i,
             severity: 'High',
             title: 'Full SD Card',
             explanation: 'Lamp unable to download tracks because the SD card is full.'
+          },
+          {
+            pattern: /display_touch_set_display_brightness:\s*Failed to write the display brightness registers of the display\/touch controller/i,
+            severity: 'Low',
+            title: 'ALS',
+            explanation: 'Touch Display failure detected'
           }
-
-          // (No generic sd_reader_log_health rule here; handled by the specialized parser below)
         ];
       }
 
@@ -265,64 +271,29 @@
         });
       }
 
-      // ---- Existing SD health parsing & unified finding ----
+      // Parsers
       parseSdReaderHealth(line) {
-        const payload = line.split('sd_reader_log_health:')[1]?.trim();
-        if (!payload) return null;
-
+        const idx = line.toLowerCase().indexOf('sd_reader_log_health:');
+        if (idx === -1) return null;
+        const payload = line.slice(idx + 'sd_reader_log_health:'.length).trim();
         const norm = payload.replace(/,/g, ';');
         const parts = norm.split(';').map(s => s.trim()).filter(Boolean);
-
         const kv = {};
         for (const p of parts) {
-          const m = p.match(/^([A-Z]+)\s*[:=]\s*([0-9.]+)$/i);
-          if (m) {
-            const k = m[1].toUpperCase();
-            const v = Number(m[2]);
-            if (!Number.isNaN(v)) kv[k] = v;
-          }
+          const m = p.match(/^([A-Z]+)\s*[:=]\s*([-\d.]+)$/i);
+          if (m) kv[m[1].toUpperCase()] = Number(m[2]);
         }
         return kv;
       }
 
-      makeUnifiedSdFinding(kv, timestamp, originalLogMessage) {
-        const offenders = this.sdFieldsToWarn
-          .filter(k => typeof kv[k] === 'number' && kv[k] > 0)
-          .map(k => `${k}=${kv[k]}`);
-
-        if (offenders.length === 0) return null;
-
-        return {
-          timestamp,
-          severity: 'High',
-          title: 'SD Card Health Issues Detected',
-          explanation:
-            `Device reported SD health problems: ${offenders.join(', ')}. `,
-          originalLogMessage
-        };
-      }
-      // ---------------------------------------------
-
-      // ===== NEW PARSERS =====
-
-      // 1) SD Card Data Failure (Low) — downloader_report_stats & related lines
       parseDownloaderStats(line) {
-        // Example: downloader_report_stats: Download Stats >> Max=163, Min=139, Avg=147, Count=3, failed attempts=0
         const m = line.match(/downloader_report_stats:\s*Download Stats\s*>>\s*Max=(\d+(?:\.\d+)?),\s*Min=(\d+(?:\.\d+)?),\s*Avg=(\d+(?:\.\d+)?),\s*Count=(\d+),\s*failed attempts=(\d+)/i);
         if (!m) return null;
-        return {
-          Max: Number(m[1]),
-          Min: Number(m[2]),
-          Avg: Number(m[3]),
-          Count: Number(m[4]),
-          Failed: Number(m[5])
-        };
+        return { Max: +m[1], Min: +m[2], Avg: +m[3], Count: +m[4], Failed: +m[5] };
       }
 
-      // 5) IoT Connectivity Health — one card per offending metric (AD/WD/FP)
       parseIoTConnectivity(line) {
-        // RC=12;RT=3600.097;AC=3586.999;AD=1;DH=0,1,0,0;WC=3600.089;WD=0;SP=60;FP=0;RMIN=-37;RMAX=-30;RA=-32.523
-        if (!/[; ]AD=|[; ]WD=|[; ]FP=/.test(line)) return null;
+        if (!/RC=\d+;.*RMAX=.*;RA=/.test(line)) return null;
         const parts = line.split(';').map(s => s.trim());
         const kv = {};
         for (const p of parts) {
@@ -332,16 +303,14 @@
         const res = {};
         ['AD','WD','FP'].forEach(k => {
           if (k in kv) {
-            const v = Number(String(kv[k]).split(',')[0]); // handle any comma group; use first number
+            const v = Number(String(kv[k]).split(',')[0]);
             if (!Number.isNaN(v)) res[k] = v;
           }
         });
         return res;
       }
 
-      // 6) Audio Error — parse AUDIO_STAT
       parseAudioStat(line) {
-        // AUDIO_STAT: V:1;F:0;FW:0;WP:3;WD:61587;WU:2;...;MU:0;...;SU:0;...
         const tagIdx = line.indexOf('AUDIO_STAT:');
         if (tagIdx === -1) return null;
         const payload = line.slice(tagIdx + 'AUDIO_STAT:'.length).trim();
@@ -372,63 +341,58 @@
             const timestamp = rowData['log_timestamp_pt'] || 'N/A';
             const logMessage = rowData['log_message'] || fullLogLine;
 
-            // ---- Existing: Unified SD-health handler
+            // Very High — SD Card Issues
             if (/sd_reader_log_health:/i.test(fullLogLine)) {
               const kv = this.parseSdReaderHealth(fullLogLine);
               if (kv) {
-                const f = this.makeUnifiedSdFinding(kv, timestamp, logMessage);
-                if (f) detected.push(f);
+                const label = { TF:'Total Failures (1 Hr)', CTF:'Total Failures (24 Hrs)', RF:'Read Failures', WF:'Write Failures', FE:'File Errors', DE:'Disk Errors' };
+                this.sdHealthFields.forEach(key => {
+                  const v = kv[key];
+                  if (typeof v === 'number' && v > 0) {
+                    detected.push({
+                      timestamp,
+                      severity: 'Very High',
+                      title: `SD Card Issues: ${key} > 0`,
+                      explanation: `SD Card Health Issues Detected — ${label[key]} (value: ${v}).`,
+                      originalLogMessage: logMessage
+                    });
+                  }
+                });
               }
-              // Don't let generic rules also match this line
               continue;
             }
 
-            // ---- NEW: SD Card Data Failure
-            // Stats-based (only if failed attempts > 0)
+            // Medium — SD Card Data Failure
             if (/downloader_report_stats:/i.test(fullLogLine)) {
               const stats = this.parseDownloaderStats(fullLogLine);
               if (stats && stats.Failed > 0) {
                 detected.push({
                   timestamp,
-                  severity: 'Low',
+                  severity: 'Medium',
                   title: 'SD Card Data Failure',
-                  explanation:
-                    `Download stats show failures. ` +
-                    `Max = ${stats.Max} (max download speed), Min = ${stats.Min} (minimum), ` +
-                    `Avg = ${stats.Avg} (average), Count = ${stats.Count} (files downloaded), ` +
-                    `Failed attempts = ${stats.Failed} (download failures since last boot).`,
+                  explanation: `Download stats show failures. Max = ${stats.Max} (maximum), Min = ${stats.Min} (minimum), Avg = ${stats.Avg} (average), Count = ${stats.Count} (downloaded), Failed attempts = ${stats.Failed} (since last boot).`,
                   originalLogMessage: logMessage
                 });
               }
-              // Still allow generic rules below to check other patterns on this line if any
-            } else if (
-              /web_streamer_start_download:\s*File download queued\.\.\.|_do_download:\s*Error on file write, aborting download, errno is 28|http_client_close:\s*Closing http client connection|content_scheduler_check:\s*File .* reached maximum download attempts/i
-              .test(fullLogLine)
-            ) {
+            } else if (/web_streamer_start_download:\s*File download queued\.\.\.|_do_download:\s*Error on file write, aborting download, errno is 28|http_client_close:\s*Closing http client connection|content_scheduler_check:\s*File .* reached maximum download attempts/i.test(fullLogLine)) {
               detected.push({
-                timestamp,
-                severity: 'Low',
-                title: 'SD Card Data Failure',
-                explanation:
-                  'A download-related error occurred. Max = maximum download speed, Min = minimum download speed, ' +
-                  'Avg = average download speed, Count = number of files downloaded, Failed attempts = number of download failures since last boot.',
+                timestamp, severity: 'Medium', title: 'SD Card Data Failure',
+                explanation: 'Download path error. Max = maximum; Min = minimum; Avg = average; Count = files downloaded; Failed attempts = failures since last boot.',
                 originalLogMessage: logMessage
               });
-              // continue through to allow other unrelated rules on the same line if needed
             }
 
-            // ---- NEW: IoT Connectivity Health (one card per metric with value > 0)
+            // Medium — IoT Connectivity
             if (/RC=\d+;.*RMAX=.*;RA=/.test(fullLogLine)) {
               const kv = this.parseIoTConnectivity(fullLogLine);
               if (kv) {
+                const explain = { AD: 'AWS Disconnects', WD: 'WiFi Disconnects', FP: 'Failed Pings' };
                 ['AD','WD','FP'].forEach(k => {
                   const v = kv[k];
                   if (typeof v === 'number' && v > 0) {
                     detected.push({
-                      timestamp,
-                      severity: 'Medium',
-                      title: `IoT Connectivity Health: ${k} > 0`,
-                      explanation: `Network connectivity issue detected. ${k}=${v}`,
+                      timestamp, severity: 'Medium', title: `IoT Connectivity Health: ${k} > 0`,
+                      explanation: `Network Issue Detected — ${explain[k]} (${k}=${v}).`,
                       originalLogMessage: logMessage
                     });
                   }
@@ -436,26 +400,25 @@
               }
             }
 
-            // ---- NEW: Audio Error (aggregate F, FW, WU, MU, SU > 0)
+            // High — Audio Error
             if (/AUDIO_STAT:/i.test(fullLogLine)) {
               const kv = this.parseAudioStat(fullLogLine);
               if (kv) {
-                const keys = ['F','FW','WU','MU','SU'];
-                const offenders = keys.filter(k => typeof kv[k] === 'number' && kv[k] > 0)
-                                      .map(k => `${k}=${kv[k]}`);
-                if (offenders.length > 0) {
-                  detected.push({
-                    timestamp,
-                    severity: 'High',
-                    title: 'Audio Error',
-                    explanation: `An error detected in audio playback. Offending counters: ${offenders.join(', ')}`,
-                    originalLogMessage: logMessage
-                  });
-                }
+                const keys = [['F','Critical Failures'],['FW','WiFi Shutdowns'],['WU','WAV Underruns'],['MU','MP3 SD Underruns'],['SU','MP3 HTTP Underruns']];
+                keys.forEach(([k,label]) => {
+                  const v = kv[k];
+                  if (typeof v === 'number' && v > 0) {
+                    detected.push({
+                      timestamp, severity: 'High', title: `Audio Error: ${k} > 0`,
+                      explanation: `Error detected in audio playback — ${label} (${k}=${v}).`,
+                      originalLogMessage: logMessage
+                    });
+                  }
+                });
               }
             }
 
-            // ---- Existing: generic regex rules
+            // Generic rules
             for (const rule of this.errorRules) {
               if (rule.pattern.test(fullLogLine)) {
                 detected.push({
@@ -477,18 +440,12 @@
       }
 
       parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-
+        const result = []; let current = ''; let inQuotes = false;
         for (let i = 0; i < line.length; i++) {
           const char = line[i];
           if (char === '"') {
-            if (i < line.length - 1 && line[i + 1] === '"') {
-              current += '"'; i++; // escaped quote
-            } else {
-              inQuotes = !inQuotes;
-            }
+            if (i < line.length - 1 && line[i + 1] === '"') { current += '"'; i++; }
+            else { inQuotes = !inQuotes; }
           } else if (char === ',' && !inQuotes) {
             result.push(current.trim()); current = '';
           } else {
@@ -499,20 +456,12 @@
         return result;
       }
 
-      // Group identical issues (by severity + title) for UI, with counts and a sample
       groupFindings(findings) {
         const map = new Map();
         for (const f of findings) {
           const key = `${f.severity}::${f.title}`;
           if (!map.has(key)) {
-            map.set(key, {
-              severity: f.severity,
-              title: f.title,
-              explanation: f.explanation,
-              count: 1,
-              sampleTimestamp: f.timestamp || 'N/A',
-              sampleLog: f.originalLogMessage || ''
-            });
+            map.set(key, { severity: f.severity, title: f.title, explanation: f.explanation, count: 1, sampleTimestamp: f.timestamp || 'N/A', sampleLog: f.originalLogMessage || '' });
           } else {
             map.get(key).count += 1;
           }
@@ -522,9 +471,7 @@
           if (!grouped[g.severity]) grouped[g.severity] = [];
           grouped[g.severity].push(g);
         }
-        for (const sev of Object.keys(grouped)) {
-          grouped[sev].sort((a,b) => b.count - a.count);
-        }
+        for (const sev of Object.keys(grouped)) grouped[sev].sort((a,b)=>b.count-a.count);
         return grouped;
       }
 
@@ -541,8 +488,8 @@
 
         const groupedBySeverity = this.groupFindings(this.rawFindings);
         const severitiesPresent = Object.keys(groupedBySeverity).length;
-        const severityOrder = ['High', 'Medium', 'Low'];
-        const severityIcons = { High: '🔴', Medium: '🟠', Low: '🟡' };
+        const severityOrder = ['Very High','High','Medium','Low'];
+        const severityIcons = { 'Very High': '🚩', High: '🔴', Medium: '🟠', Low: '🟡' };
 
         let html = `
           <div class="error-summary">
@@ -553,9 +500,10 @@
         severityOrder.forEach(severity => {
           const items = groupedBySeverity[severity] || [];
           if (items.length > 0) {
+            const cls = severity.toLowerCase().replace(/\s+/g,'-');  /* robust mapping */
             html += `
               <div class="severity-section">
-                <div class="severity-header severity-${severity.toLowerCase()}">
+                <div class="severity-header severity-${cls}">
                   <span style="font-size: 1.5em;">${severityIcons[severity]}</span>
                   <h3>${severity}-Severity Issues (${items.length})</h3>
                 </div>`;
@@ -581,7 +529,7 @@
       }
 
       escapeHtml(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       }
 
       showLoading() {
@@ -607,33 +555,23 @@
           return;
         }
 
-        // Export *summary* view (deduped with counts)
+        // Export summary (deduped)
         const grouped = this.groupFindings(this.rawFindings);
         const rows = [['Severity','Error Title','Explanation','Occurrences','Sample Timestamp','Sample Log']];
 
-        ['High','Medium','Low'].forEach(sev => {
+        ['Very High','High','Medium','Low'].forEach(sev => {
           (grouped[sev] || []).forEach(item => {
-            rows.push([
-              sev,
-              item.title,
-              item.explanation,
-              String(item.count),
-              item.sampleTimestamp || '',
-              item.sampleLog || ''
-            ]);
+            rows.push([sev, item.title, item.explanation, String(item.count), item.sampleTimestamp || '', item.sampleLog || '']);
           });
         });
 
-        const csvContent = rows.map(cols =>
-          cols.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-        ).join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const csv = rows.map(cols => cols.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         if (link.download !== undefined) {
           const url = URL.createObjectURL(blob);
-          link.setAttribute('href', url);
-          link.setAttribute('download', `hatch-log-analysis-summary-${new Date().toISOString().slice(0, 10)}.csv`);
+          link.href = url;
+          link.download = `hatch-log-analysis-summary-${new Date().toISOString().slice(0,10)}.csv`;
           link.style.visibility = 'hidden';
           document.body.appendChild(link);
           link.click();
@@ -642,10 +580,7 @@
       }
     }
 
-    // Initialize the application
-    document.addEventListener('DOMContentLoaded', () => {
-      new LogAnalyzer();
-    });
+    document.addEventListener('DOMContentLoaded', () => { new LogAnalyzer(); });
   </script>
 </body>
 </html>
