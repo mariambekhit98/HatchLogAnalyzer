@@ -424,6 +424,19 @@
               }
             }
 
+            // High — Audio Bitrate Exceeds Expected
+            const bitrateMatch = fullLogLine.match(/generic_decode:\s*Audio info:.*?bitrate\s+(\d+)bps/i);
+            if (bitrateMatch) {
+              const bitrate = parseInt(bitrateMatch[1], 10);
+              if (bitrate > 128000) {
+                detected.push({
+                  timestamp, severity: 'High', title: 'Audio Bitrate Exceeds Expected',
+                  explanation: `Audio bitrate is ${bitrate}bps, which is above the expected 128000bps threshold.`,
+                  originalLogMessage: logMessage
+                });
+              }
+            }
+
             // Generic rules
             for (const rule of this.errorRules) {
               if (rule.pattern.test(fullLogLine)) {
