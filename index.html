@@ -241,6 +241,12 @@
             severity: 'Low',
             title: 'ALS',
             explanation: 'Touch Display failure detected'
+          },
+          {
+            pattern: /_update_completion_status:\s*Audio task timed out when stopping track gracefully\. Forcefully stopping\.\.\.|_active_on_update:\s*_prepare_samples critically failed|_process_on_update:\s*Halting playback due to critical on_update error|state_handle_audio_error:\s*Error during audio playback:/i,
+            severity: 'High',
+            title: 'Audio Errors',
+            explanation: 'Audio errors detected during playback or when stopping a track. Playback may have halted or the audio task may have been forcefully stopped.'
           }
         ];
       }
