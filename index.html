@@ -159,6 +159,7 @@
 
         this.initializeEventListeners();
         this.defineErrorRules();
+        this.defineSelfTestCodes();
       }
 
       initializeEventListeners() {
@@ -251,6 +252,32 @@
         ];
       }
 
+      // Self-diagnostic test codes. E0XX identifies WHICH test ran — not a status.
+      // Source: "Self-Diagnostic Test Error Codes" sheet.
+      defineSelfTestCodes() {
+        this.selfTestCodes = {
+          'E000': { name: 'Set Logging (SL#)', detail: 'Could not set the logging level for the self-test. This runs at both the start and the end of the test, so it appears twice in a full pass.' },
+          'E001': { name: 'Start of Test (TLCTEST0)', detail: 'Seven-segment display was set to "TEST" to mark the start of the self-test. This test is not expected to fail — a failure here is unusual and worth investigating.' },
+          'E002': { name: 'Display Test (TLC88881 / TGD)', detail: 'Seven-segment "8888" test, plus the graphics display test on Restore 2. Neither is expected to fail — a failure here is unusual and worth investigating.' },
+          'E003': { name: 'LED Test — Red (TCR)', detail: 'The red LED could not be driven. This fails when the item could not be queued to led_queue, which usually means the queue was full.' },
+          'E004': { name: 'LED Test — Blue (TCB)', detail: 'The blue LED could not be driven. This fails when the item could not be queued to led_queue, which usually means the queue was full.' },
+          'E005': { name: 'LED Test — Green (TCG)', detail: 'The green LED could not be driven. This fails when the item could not be queued to led_queue, which usually means the queue was full.' },
+          'E006': { name: 'LED Test — White (TCW)', detail: 'The white LED could not be driven. This fails when the item could not be queued to led_queue, which usually means the queue was full.' },
+          'E007': { name: 'SD Card Mount — Recurring Failure', detail: 'The SD card failed to mount AND the previous reset was also caused by an SD mount issue — so rebooting did not resolve it. The card can reasonably be assumed corrupted.' },
+          'E008': { name: 'SD Card Mount — NVS Flag Write', detail: 'The SD card failed to mount and the NVS reboot flag could not be written. This points to a problem with NVS rather than with the SD card itself.' },
+          'E009': { name: 'SD Card Mount — Auto-Reboot Check', detail: 'The device did not reboot from the SD-mount NVS flag as expected, so the auto-reboot recovery logic may not be working as intended.' },
+          'E010': { name: 'Connectivity — WiFi', detail: 'WIFI_CONNECTED_BIT is not set in the WiFi event group, so the device is not on WiFi. This can be a problem with the network itself or incorrect WiFi credentials.' },
+          'E011': { name: 'Connectivity — AWS', detail: 'AWS_CONNECTED is not set, so the device has no stable connection to the AWS backend. It cannot receive shadow deltas and cannot execute app-side requests such as a queue to unwind.' },
+          'E012': { name: 'Audio Test — WAV (TMW)', detail: 'Could not play the BirdsChirping sleep sound from /mnt/Sleep_Sounds/. The WAV file may be missing, which indicates a faulty SD card — WAV files cannot be re-downloaded to the device. If it plays but sounds wrong, the file itself may be corrupt.' },
+          'E013': { name: 'Audio Test — MP3 (TMZ)', detail: 'Could not play the Rise and Shine MP3 from /mnt/Restore_Sounds. The file may be missing or corrupt, or the folder itself may be corrupted — which would require a new SD card rather than just a new copy of the file.' },
+          'E014': { name: 'Audio Test — Streaming MP3 (TMS)', detail: 'Streaming playback of Glowing Campfire from Charlie\'s Channel did not complete. This test is not expected to fail — a failure here is unusual and worth investigating.' },
+          // Range labels, in case a log emits the documented range rather than a single code.
+          'E003-E006': { name: 'LED Tests', detail: 'One of the LED tests (red, blue, green, or white) failed to queue to led_queue.' },
+          'E007-E009': { name: 'SD Card Tests', detail: 'An SD card mount test failed. The device attempts to mount three times before rebooting.' },
+          'E010-E011': { name: 'Connectivity Tests', detail: 'A connectivity test failed — either WiFi or the AWS backend connection.' }
+        };
+      }
+
       async handleFileSelect(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -327,6 +354,19 @@
           if (m) kv[m[1].toUpperCase()] = Number(m[2]);
         }
         return kv;
+      }
+
+      parseSelfTestResults(line) {
+        const idx = line.toUpperCase().indexOf('SELF_TEST_RESULTS:');
+        if (idx === -1) return null;
+        const payload = line.slice(idx + 'SELF_TEST_RESULTS:'.length).trim();
+        const parts = payload.split(';').map(s => s.trim()).filter(Boolean);
+        const results = [];
+        for (const p of parts) {
+          const m = p.match(/^(E\d+)\s*=\s*([A-Za-z_]+)/);
+          if (m) results.push({ code: m[1].toUpperCase(), result: m[2].toUpperCase() });
+        }
+        return results;
       }
 
       analyzeLogData(csvData) {
@@ -435,6 +475,37 @@
                   originalLogMessage: logMessage
                 });
               }
+            }
+
+            // High — Self Test Results summary (any code not reporting PASS)
+            if (/SELF_TEST_RESULTS:/i.test(fullLogLine)) {
+              const results = this.parseSelfTestResults(fullLogLine);
+              if (results) {
+                results.forEach(({ code, result }) => {
+                  if (result !== 'PASS') {
+                    const info = this.selfTestCodes[code];
+                    detected.push({
+                      timestamp, severity: 'High',
+                      title: `Self Test Failure: ${code}${info ? ' — ' + info.name : ''}`,
+                      explanation: `${info ? info.detail : `Self-diagnostic test ${code} did not pass.`} Reported result: ${result}.`,
+                      originalLogMessage: logMessage
+                    });
+                  }
+                });
+              }
+            }
+
+            // High — Individual self-diagnostic test failure
+            const selfDiagFail = fullLogLine.match(/Self-diagnostic test FAILURE:\s*test number\s+(E\d+(?:\s*-\s*E\d+)?)/i);
+            if (selfDiagFail) {
+              const code = selfDiagFail[1].toUpperCase().replace(/\s+/g, '');
+              const info = this.selfTestCodes[code];
+              detected.push({
+                timestamp, severity: 'High',
+                title: `Self-Diagnostic Test Failure: ${code}${info ? ' — ' + info.name : ''}`,
+                explanation: info ? info.detail : `Self-diagnostic test ${code} reported FAILURE.`,
+                originalLogMessage: logMessage
+              });
             }
 
             // Generic rules
