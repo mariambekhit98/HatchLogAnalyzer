@@ -334,7 +334,7 @@
           if (m) kv[m[1].toUpperCase()] = m[2];
         }
         const res = {};
-        ['AD','WD','FP'].forEach(k => {
+        ['AD','WD','FP','SP'].forEach(k => {
           if (k in kv) {
             const v = Number(String(kv[k]).split(',')[0]);
             if (!Number.isNaN(v)) res[k] = v;
@@ -369,23 +369,141 @@
         return results;
       }
 
+      trackNameFromUrl(url) {
+        const clean = String(url || '').split('?')[0];
+        return clean.substring(clean.lastIndexOf('/') + 1);
+      }
+
       analyzeLogData(csvData) {
         try {
           const lines = csvData.split('\n');
           const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
           const detected = [];
 
+          // Parse every row first, then put them in device order (session, seq) so that
+          // multi-line sequences (download -> play -> stream fallback) can be correlated.
+          // Exported logs are usually newest-first and not strictly ordered.
+          const rows = [];
           for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-
             const values = this.parseCSVLine(line);
             const rowData = {};
             headers.forEach((header, index) => { rowData[header] = values[index] || ''; });
+            rows.push({ rowData, order: i });
+          }
+          const num = v => { const n = parseInt(v, 10); return Number.isNaN(n) ? null : n; };
+          const canSort = rows.length > 0 && rows.every(r => num(r.rowData['session_id']) !== null && num(r.rowData['seq']) !== null);
+          if (canSort) {
+            rows.sort((a, b) =>
+              (num(a.rowData['session_id']) - num(b.rowData['session_id'])) ||
+              (num(a.rowData['seq']) - num(b.rowData['seq'])) ||
+              (a.order - b.order));
+          }
 
+          // Correlation state
+          const ping = { failed: 0, ok: 0, gateways: new Set() };
+          // FIX 1: the device's own hourly ping counters (connectivity_health SP/FP). Successful
+          // pings are logged at level I and are missing from most exports, so counting OK lines
+          // under-reports successes. SP/FP are the reliable denominator.
+          const health = { sp: 0, fp: 0, reports: 0 };
+          const downloadMaxedOut = new Set();   // track file names that hit max download attempts
+          let downloadConnectFailures = 0;      // _do_download: ... ESP_ERR_HTTP_CONNECT (download path)
+          let httpConnectFailures = 0;          // http_client_open: ... ESP_ERR_HTTP_CONNECT (streaming / generic path)
+          let lastPlayedTrack = null;
+          let lastStreamTrack = null;            // set when a track is not on SD and streaming is attempted
+          let lastHttpTrack = null;              // set when http_start begins streaming a URL (routine streaming)
+          const sdPlaybackFailures = new Map();  // track -> count (fallback stream failed)
+          const streamPlaybackFailures = new Map(); // track -> count (direct stream failed, no fallback involved)
+          const streamFallbacks = new Map();     // track -> count
+
+          for (const { rowData } of rows) {
             const fullLogLine = Object.values(rowData).join(' ');
             const timestamp = rowData['log_timestamp_pt'] || 'N/A';
             const logMessage = rowData['log_message'] || fullLogLine;
+
+            // ---- Network: failed pings to the router/gateway (firmware 11.x "icmp_ping:" format) ----
+            const pingFail = logMessage.match(/icmp_ping:\s*(\d{1,3}(?:\.\d{1,3}){3})\s+FAIL\s*\((\d+)ms\)/i);
+            if (pingFail) {
+              ping.failed++;
+              ping.gateways.add(pingFail[1]);
+              detected.push({
+                timestamp, severity: 'Medium', title: 'Failed Ping to Router',
+                explanation: '', // filled in after the scan with totals
+                originalLogMessage: logMessage, _key: 'ping'
+              });
+              continue;
+            }
+            if (/icmp_ping:\s*\d{1,3}(?:\.\d{1,3}){3}\s+(OK|SUCCESS)|icmp_ping_success_cb:/i.test(logMessage)) {
+              ping.ok++;
+              continue;
+            }
+            if (/icmp_ping:\s*From\s+\S+\s+icmp_seq=\d+\s+timeout/i.test(logMessage)) {
+              continue; // companion line of the FAIL summary above; don't double count
+            }
+
+            // ---- Downloads failing because the content server can't be reached ----
+            if (/_do_download:\s*Failed to open HTTP client:\s*ESP_ERR_HTTP_CONNECT/i.test(logMessage)) {
+              downloadConnectFailures++;
+              detected.push({
+                timestamp, severity: 'Medium', title: 'Track Download Failed — Cannot Reach Content Server',
+                explanation: '', originalLogMessage: logMessage, _key: 'dlconnect'
+              });
+              continue;
+            }
+            // FIX 2: the far more common form of the same error, emitted by the shared HTTP client
+            // (streaming and content checks). Real exports have ~7x more of these than _do_download.
+            if (/http_client_open:\s*Failed to open HTTP connection:\s*ESP_ERR_HTTP_CONNECT/i.test(logMessage)) {
+              httpConnectFailures++;
+              detected.push({
+                timestamp, severity: 'Medium', title: 'Cannot Reach Content Server — HTTP Connect Failed',
+                explanation: '', originalLogMessage: logMessage, _key: 'httpconnect'
+              });
+              continue;
+            }
+            const maxed = logMessage.match(/content_scheduler_check:\s*File '([^']+)' reached maximum download attempts/i);
+            if (maxed) downloadMaxedOut.add(this.trackNameFromUrl(maxed[1]));
+
+            // ---- Playback: track not on SD card -> streaming fallback -> HTTP failure ----
+            const play = logMessage.match(/_play_track:\s*Playing '([^']+)'/i);
+            if (play) { lastPlayedTrack = play[1]; lastStreamTrack = null; lastHttpTrack = null; }
+
+            // FIX 3a: routines stream many tracks directly (no SD fallback). http_start names the URL.
+            const httpStart = logMessage.match(/http_start:\s*Start streaming\s*'([^']+)'/i);
+            if (httpStart) lastHttpTrack = this.trackNameFromUrl(httpStart[1]) || lastPlayedTrack;
+
+            const stream = logMessage.match(/_try_stream_track:\s*Attempting to stream from URL:\s*'([^']+)'/i);
+            if (stream) {
+              lastStreamTrack = this.trackNameFromUrl(stream[1]) || lastPlayedTrack;
+              streamFallbacks.set(lastStreamTrack, (streamFallbacks.get(lastStreamTrack) || 0) + 1);
+              detected.push({
+                timestamp, severity: 'Medium', title: 'Track Not on SD Card — Streaming Fallback',
+                explanation: '', originalLogMessage: logMessage, _key: 'fallback'
+              });
+              continue;
+            }
+
+            if (/state_handle_audio_error:\s*Failed to open streaming audio track via HTTP/i.test(logMessage)) {
+              // FIX 3b: only claim "not on SD card / download incomplete" when a _try_stream_track
+              // fallback was actually seen for this track. Otherwise it was a direct stream that failed.
+              const track = lastStreamTrack || lastHttpTrack || lastPlayedTrack || 'unknown track';
+              // SD-card variant if a fallback was logged, or the track is known to have never finished downloading.
+              const viaFallback = lastStreamTrack !== null || downloadMaxedOut.has(track);
+              if (viaFallback) {
+                sdPlaybackFailures.set(track, (sdPlaybackFailures.get(track) || 0) + 1);
+                detected.push({
+                  timestamp, severity: 'High', title: 'Unable to Play Track from SD Card (Network Issue)',
+                  explanation: '', originalLogMessage: `${logMessage}  [track: ${track}]`, _key: 'sdplay'
+                });
+              } else {
+                streamPlaybackFailures.set(track, (streamPlaybackFailures.get(track) || 0) + 1);
+                detected.push({
+                  timestamp, severity: 'High', title: 'Unable to Stream Track (Network Issue)',
+                  explanation: '', originalLogMessage: `${logMessage}  [track: ${track}]`, _key: 'streamfail'
+                });
+              }
+              continue;
+            }
 
             // Very High — SD Card Issues
             if (/sd_reader_log_health:/i.test(fullLogLine)) {
@@ -432,6 +550,10 @@
             if (/RC=\d+;.*RMAX=.*;RA=/.test(fullLogLine)) {
               const kv = this.parseIoTConnectivity(fullLogLine);
               if (kv) {
+                // FIX 1: accumulate the device's hourly successful/failed ping counters
+                if (typeof kv.SP === 'number' || typeof kv.FP === 'number') {
+                  health.sp += kv.SP || 0; health.fp += kv.FP || 0; health.reports++;
+                }
                 const explain = { AD: 'AWS Disconnects', WD: 'WiFi Disconnects', FP: 'Failed Pings' };
                 ['AD','WD','FP'].forEach(k => {
                   const v = kv[k];
@@ -520,6 +642,59 @@
                 });
                 break;
               }
+            }
+          }
+
+          // ---- Fill in aggregated explanations for correlated findings ----
+          // FIX 1: prefer the device's own hourly counters (connectivity_health SP/FP) for the loss rate.
+          // Fall back to counting OK/FAIL lines only when the export has both. If it has only FAIL
+          // lines, say so instead of reporting a fake 100%.
+          const gw = [...ping.gateways].join(', ') || 'the router';
+          let lossPct = null, lossBasis;
+          if (health.reports > 0 && (health.sp + health.fp) > 0) {
+            lossPct = Math.round((health.fp / (health.sp + health.fp)) * 100);
+            lossBasis = `${health.fp} of ${health.sp + health.fp} pings failed (${lossPct}% loss) per the device's ${health.reports} hourly connectivity report(s); ${ping.failed} failure line(s) are in this export`;
+          } else if (ping.ok > 0) {
+            lossPct = Math.round((ping.failed / (ping.failed + ping.ok)) * 100);
+            lossBasis = `${ping.failed} of ${ping.failed + ping.ok} logged ping(s) failed (${lossPct}% loss)`;
+          } else {
+            lossBasis = `${ping.failed} failed ping(s) are logged. Successful pings are not in this export, so the loss rate cannot be calculated`;
+          }
+          const persistentPingLoss = ping.failed >= 10 && lossPct !== null && lossPct >= 50;
+          const pingText =
+            `The device pinged its router/gateway (${gw}) and got no reply. ${lossBasis}. ` +
+            (persistentPingLoss
+              ? 'Loss this persistent means the device has little or no reliable path through the local network: expect download failures, streaming failures and app control problems. Check Wi-Fi signal and router health, move the device closer to the router, or power-cycle the router. (If MQTT/cloud traffic still works, the router may just be blocking ICMP. Confirm with the download/stream errors.)'
+              : 'Occasional failed pings are normal. Frequent failures point to an unstable Wi-Fi connection.');
+
+          const listTracks = map => [...map.entries()].map(([t, c]) => `${t} (${c}x)`).join('; ');
+          const maxedList = [...downloadMaxedOut];
+          const downloadedNote = maxedList.length
+            ? ` ${maxedList.length} track(s) hit the maximum download attempts and never reached the SD card: ${maxedList.join('; ')}.`
+            : '';
+          const evidence = [];
+          if (ping.failed) evidence.push(`${ping.failed} failed ping(s) to ${gw}${lossPct !== null ? ` (${lossPct}% loss)` : ''}`);
+          if (downloadConnectFailures) evidence.push(`${downloadConnectFailures} download(s) that could not connect to the content server`);
+          if (httpConnectFailures) evidence.push(`${httpConnectFailures} HTTP connection(s) to the content server that failed`);
+          const networkNote = evidence.length ? ` Network evidence: ${evidence.join('; ')}.` : '';
+
+          const explanations = {
+            ping: pingText,
+            dlconnect: `The device could not open an HTTP connection to the content server (ESP_ERR_HTTP_CONNECT) while downloading audio to the SD card. ${downloadConnectFailures} failed download attempt(s).${downloadedNote} Tracks that are not downloaded must be streamed, which also depends on the network.`,
+            httpconnect: `The device could not open an HTTP connection to the content server (ESP_ERR_HTTP_CONNECT). This is the shared HTTP client, used when streaming a track and when checking or fetching content. ${httpConnectFailures} occurrence(s).${networkNote} Usually the local network (Wi-Fi/router) is the cause; if pings are fine, the content server or DNS may be unreachable.`,
+            fallback: `The device was asked to play a track that was not stored on the SD card, so it tried to stream it over the internet instead. The fallback sound should still play, but streaming depends on the network. Tracks: ${listTracks(streamFallbacks) || 'n/a'}.${downloadedNote}`,
+            sdplay: `Playback failed. The track was not on the SD card (its download had not completed), so the device tried to stream it, and the HTTP connection failed because of network problems. The routine/sound went silent. Affected tracks: ${listTracks(sdPlaybackFailures) || 'n/a'}.${downloadedNote}${networkNote} Fix the network so the downloads can finish; after that the tracks will play from the SD card.`,
+            // FIX 3: direct-stream failure. No SD-card fallback was involved, so don't blame a missing download.
+            streamfail: `Streaming playback failed. The device was streaming this track over HTTP (no SD-card fallback was involved) and could not open the connection to the content server, so the track did not play. Affected tracks: ${listTracks(streamPlaybackFailures) || 'n/a'}.${networkNote} Check the Wi-Fi/router first; if the network is healthy, check whether the content server was reachable.`
+          };
+          for (const f of detected) {
+            if (f._key) {
+              f.explanation = explanations[f._key];
+              if (f._key === 'ping' && persistentPingLoss) {
+                f.severity = 'High';
+                f.title = 'Persistent Ping Failures to Router (Network Down/Unstable)';
+              }
+              delete f._key;
             }
           }
 
